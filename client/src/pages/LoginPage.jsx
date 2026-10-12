@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Zap, Mail, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { Zap, Mail, Lock, AlertCircle, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function LoginPage() {
   const { login } = useAuth();
+  const location = useLocation();
+  const infoMessage = location.state?.message;
   const [email, setEmail] = useState('demo@socialai.com');
   const [password, setPassword] = useState('demo123');
   const [error, setError] = useState('');
@@ -78,6 +80,13 @@ export default function LoginPage() {
           <div className="p-8 rounded-3xl bg-surface-800/50 border border-white/5 glass-card">
             <h2 className="text-2xl font-bold text-white mb-1">Welcome back</h2>
             <p className="text-surface-200/50 text-sm mb-6">Sign in to your account</p>
+
+            {infoMessage && (
+              <div className="flex items-center gap-2 p-3 mb-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm animate-scale-in">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>{infoMessage}</span>
+              </div>
+            )}
 
             {error && (
               <div className="flex items-center gap-2 p-3 mb-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm animate-scale-in">

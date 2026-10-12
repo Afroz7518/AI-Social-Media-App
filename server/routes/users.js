@@ -1,5 +1,11 @@
 import express from 'express';
 import User from '../models/User.js';
+import Post from '../models/Post.js';
+import Media from '../models/Media.js';
+import Notification from '../models/Notification.js';
+import SocialAccount from '../models/SocialAccount.js';
+import Team from '../models/Team.js';
+import Template from '../models/Template.js';
 import { protect } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -68,5 +74,46 @@ router.put('/password', protect, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// DELETE /api/users/account - Permanently delete user account and cascade data
+const handleDeleteAccount = async (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!password) {
+      return res.status(400).json({ error: 'Password is required to confirm account deletion' });
+    }
+
+    const user = await User.findById(req.user._id).select('+password');
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) {
+      return res.status(400).json({ error: 'Incorrect password. Account deletion aborted.' });
+    }
+
+    const userId = req.user._id;
+
+    // Cascade delete all associated resources
+    await Promise.all([
+      Post.deleteMany({ user: userId }),
+      Media.deleteMany({ user: userId }),
+      Notification.deleteMany({ user: userId }),
+      SocialAccount.deleteMany({ user: userId }),
+      Template.deleteMany({ user: userId }),
+      Team.deleteMany({ owner: userId }),
+      Team.updateMany({ 'members.user': userId }, { $pull: { members: { user: userId } } }),
+      User.findByIdAndDelete(userId),
+    ]);
+
+    res.json({ message: 'User account and all associated resources have been permanently deleted' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+router.delete('/account', protect, handleDeleteAccount);
+router.delete('/profile', protect, handleDeleteAccount);
 
 export default router;

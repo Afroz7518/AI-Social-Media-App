@@ -56,8 +56,14 @@ export function AuthProvider({ children }) {
     localStorage.setItem('socialai_user', JSON.stringify(updatedUser));
   }, []);
 
+  const deleteAccount = useCallback(async (password) => {
+    const res = await api.delete('/users/account', { data: { password } });
+    logout();
+    return res.data;
+  }, [logout]);
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser, deleteAccount }}>
       {children}
     </AuthContext.Provider>
   );

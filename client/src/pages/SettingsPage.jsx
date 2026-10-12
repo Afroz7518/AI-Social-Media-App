@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import {
   User, Shield, Bell, Moon, Sun, Monitor, Lock, CheckCircle2,
   AlertCircle, Save, Loader2, Sparkles, Building, Mail,
-  FileText, Globe, Clock, KeyRound, ExternalLink, RefreshCw
+  FileText, Globe, Clock, KeyRound, ExternalLink, RefreshCw,
+  Trash2, AlertTriangle, X
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -10,7 +11,7 @@ import api from '../services/api';
 import { useNavigate } from 'react-router-dom';
 
 export function SettingsPage() {
-  const { user, updateUser, logout } = useAuth();
+  const { user, updateUser, logout, deleteAccount } = useAuth();
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
 
@@ -49,6 +50,13 @@ export function SettingsPage() {
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordSuccess, setPasswordSuccess] = useState('');
   const [passwordError, setPasswordError] = useState('');
+
+  // Delete account modal state
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   // Populate data from user
   useEffect(() => {
@@ -159,6 +167,49 @@ export function SettingsPage() {
     } finally {
       setPasswordSaving(false);
     }
+  };
+
+  // Handle Account Deletion
+  const handleDeleteAccountSubmit = async (e) => {
+    e.preventDefault();
+    setDeleteError('');
+
+    if (deleteConfirmText.trim().toUpperCase() !== 'DELETE') {
+      setDeleteError('Please type "DELETE" to confirm account deletion.');
+      return;
+    }
+    if (!deletePassword) {
+      setDeleteError('Please enter your current account password.');
+      return;
+    }
+
+    setDeleteLoading(true);
+    try {
+      await deleteAccount(deletePassword);
+      setIsDeleteModalOpen(false);
+      navigate('/login', {
+        state: { message: 'Your account and all associated data have been permanently deleted.' },
+      });
+    } catch (err) {
+      setDeleteError(err.response?.data?.error || 'Failed to delete account. Please verify your password and try again.');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleOpenDeleteModal = () => {
+    setDeletePassword('');
+    setDeleteConfirmText('');
+    setDeleteError('');
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleCloseDeleteModal = () => {
+    if (deleteLoading) return;
+    setIsDeleteModalOpen(false);
+    setDeletePassword('');
+    setDeleteConfirmText('');
+    setDeleteError('');
   };
 
   const tabs = [
@@ -372,6 +423,21 @@ export function SettingsPage() {
                 </button>
               </div>
             </form>
+          </div>
+
+          {/* Quick link to Security & Danger Zone */}
+          <div className="lg:col-span-3 rounded-2xl p-4 bg-surface-900/40 dark:bg-surface-900/40 light:bg-surface-50 border border-white/5 dark:border-white/5 light:border-surface-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2 text-surface-200/70 dark:text-surface-200/70 light:text-surface-600">
+              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>Looking to change password, manage active sessions, or permanently delete your account?</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveTab('security')}
+              className="px-3 py-1.5 rounded-lg text-primary-400 hover:text-primary-300 hover:bg-primary-500/10 border border-primary-500/20 font-medium transition-colors shrink-0"
+            >
+              Go to Security & Danger Zone →
+            </button>
           </div>
         </div>
       )}
@@ -714,25 +780,190 @@ export function SettingsPage() {
           </div>
 
           {/* Danger Zone */}
-          <div className="rounded-2xl p-6 border border-rose-500/20 bg-rose-500/5 glass flex items-center justify-between">
-            <div>
-              <h3 className="font-semibold text-rose-400 text-sm">
-                Sign Out from All Devices
-              </h3>
-              <p className="text-xs text-surface-200/60 dark:text-surface-200/60 light:text-surface-700/60 mt-0.5">
-                Revoke current authentication token and terminate dashboard session.
-              </p>
+          <div className="rounded-2xl border border-rose-500/25 bg-rose-500/[0.03] overflow-hidden glass">
+            <div className="p-6 border-b border-rose-500/15 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-rose-400 text-sm">
+                    Danger Zone
+                  </h3>
+                  <p className="text-xs text-surface-200/60 dark:text-surface-200/60 light:text-surface-700/60 mt-0.5">
+                    Critical operations that affect your account access and stored data.
+                  </p>
+                </div>
+              </div>
             </div>
+
+            <div className="p-6 space-y-6 divide-y divide-white/5 dark:divide-white/5 light:divide-surface-200">
+              {/* Sign Out */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h4 className="font-medium text-white dark:text-white light:text-surface-900 text-sm">
+                    Sign Out from All Devices
+                  </h4>
+                  <p className="text-xs text-surface-200/60 dark:text-surface-200/60 light:text-surface-700/60 mt-0.5">
+                    Revoke current authentication token and terminate your active dashboard session.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    logout();
+                    navigate('/login');
+                  }}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-white/5 hover:bg-white/10 text-surface-200 hover:text-white border border-white/10 transition-colors shrink-0"
+                >
+                  Log Out
+                </button>
+              </div>
+
+              {/* Permanently Delete Account */}
+              <div className="pt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-medium text-rose-400 text-sm">
+                      Delete Account
+                    </h4>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                      Irreversible
+                    </span>
+                  </div>
+                  <p className="text-xs text-surface-200/60 dark:text-surface-200/60 light:text-surface-700/60 mt-1 max-w-xl">
+                    Permanently delete your account along with all posts, uploaded media assets, connected social channels, templates, and analytics data. This action cannot be undone.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleOpenDeleteModal}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-rose-500 hover:bg-rose-600 text-white shadow-lg shadow-rose-500/20 hover:shadow-rose-500/30 transition-all duration-200 shrink-0 cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Delete Account</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Account Deletion Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="relative w-full max-w-md rounded-2xl bg-surface-900 border border-rose-500/30 shadow-2xl p-6 glass-card animate-scale-in">
+            {/* Close button */}
             <button
               type="button"
-              onClick={() => {
-                logout();
-                navigate('/login');
-              }}
-              className="px-4 py-2 rounded-xl text-xs font-semibold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition-colors"
+              onClick={handleCloseDeleteModal}
+              disabled={deleteLoading}
+              className="absolute right-4 top-4 text-surface-200/40 hover:text-surface-200/80 p-1 rounded-lg hover:bg-white/5 transition-colors disabled:opacity-30"
             >
-              Log Out
+              <X className="w-5 h-5" />
             </button>
+
+            {/* Header */}
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 shrink-0 shadow-lg shadow-rose-500/10">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white tracking-tight">
+                  Delete Account
+                </h3>
+                <p className="text-xs text-rose-400/90 font-medium">
+                  This action is permanent and cannot be undone
+                </p>
+              </div>
+            </div>
+
+            {/* Warning details */}
+            <div className="mb-5 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-surface-200/80 space-y-2">
+              <p className="font-semibold text-rose-300">
+                You are about to delete <span className="text-white underline">{user?.email}</span>.
+              </p>
+              <p className="text-surface-200/70">
+                The following resources will be permanently erased:
+              </p>
+              <ul className="list-disc list-inside space-y-1 text-surface-200/70 pl-1">
+                <li>All posts, drafts, and scheduled publishing queues</li>
+                <li>All media files, videos, and uploaded assets</li>
+                <li>All connected social accounts (X, Meta, LinkedIn)</li>
+                <li>Custom templates and AI prompts history</li>
+                <li>Owned workspace teams and collaboration settings</li>
+              </ul>
+            </div>
+
+            {/* Error Message */}
+            {deleteError && (
+              <div className="mb-4 p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                <span>{deleteError}</span>
+              </div>
+            )}
+
+            {/* Form */}
+            <form onSubmit={handleDeleteAccountSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-surface-200/70 mb-1.5">
+                  Confirm your password <span className="text-rose-400">*</span>
+                </label>
+                <div className="relative">
+                  <KeyRound className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-surface-200/40" />
+                  <input
+                    type="password"
+                    value={deletePassword}
+                    onChange={(e) => setDeletePassword(e.target.value)}
+                    required
+                    placeholder="Enter current password"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-surface-950 border border-white/10 text-sm text-white focus:border-rose-500 focus:outline-none transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-surface-200/70 mb-1.5">
+                  Type <span className="font-mono text-rose-400 font-bold">DELETE</span> to confirm <span className="text-rose-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  required
+                  placeholder='Type "DELETE"'
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-surface-950 border border-white/10 text-sm text-white focus:border-rose-500 focus:outline-none transition-colors"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={handleCloseDeleteModal}
+                  disabled={deleteLoading}
+                  className="px-4 py-2.5 rounded-xl text-xs font-semibold bg-white/5 hover:bg-white/10 text-surface-200 border border-white/10 transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={deleteLoading || deleteConfirmText.trim().toUpperCase() !== 'DELETE' || !deletePassword}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-500 disabled:opacity-40 disabled:cursor-not-allowed text-white shadow-lg shadow-rose-600/30 transition-all duration-200"
+                >
+                  {deleteLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Deleting Account...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4" />
+                      <span>Permanently Delete</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
